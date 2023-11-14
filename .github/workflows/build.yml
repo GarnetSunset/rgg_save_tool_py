@@ -30,8 +30,8 @@ jobs:
       - name: Upload Artifact
         uses: actions/upload-artifact@v2
         with:
-          name: rgg_save_tools-${{ matrix.os }}
-          path: dist/rgg_save_tools*
+          name: rgg_save_tool-${{ matrix.os }}
+          path: dist/rgg_save_tool*
 
   release:
     needs: build
@@ -59,7 +59,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./dist/rgg_save_tools-ubuntu-latest
-          asset_name: rgg_save_tools-ubuntu-latest
+          asset_path: ./dist/rgg_save_tool-ubuntu-latest
+          asset_name: rgg_save_tool-ubuntu-latest
           asset_content_type: application/octet-stream
     # Repeat the "Upload Release Asset" step for each OS
