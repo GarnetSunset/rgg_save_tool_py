@@ -25,7 +25,7 @@ jobs:
 
       - name: Build Executable
         run: |
-          pyinstaller --onefile rgg_save_tools.py
+          pyinstaller --onefile rgg_save_tool.py
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v2
