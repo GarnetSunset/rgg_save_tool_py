@@ -99,7 +99,8 @@ def process_file(filename, game, encrypt=False):
         else:
             decrypted_data = xor_data(data[:-4], key)
             # Modify the JSON data within the binary data
-            data = modify_json_binary(decrypted_data, 'rggsc_game_identifier', game)
+            if game != "ik":
+                data = modify_json_binary(decrypted_data, 'rggsc_game_identifier', game)
 
         with open(outname, "wb") as out_file:
             out_file.write(data)
@@ -143,7 +144,9 @@ def main():
     elif is_game_save(filename, y6_headers):
         game_abbr = "y6"
 
-    if extension == ".json":
+    print(f"Game is: {game_abbr}")
+
+    if extension == ".json" and game_abbr != "ik":
         with open(filename, 'r') as f:
             dict = json.load(f)
         if "rggsc_game_identifier" in dict:
