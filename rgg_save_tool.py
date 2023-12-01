@@ -147,7 +147,7 @@ def main():
 
     print(f"Game is: {game_abbr}")
 
-    if extension == ".json" and game_abbr != "ik":
+    if extension == ".json" and game_abbr != "ik" and game_abbr:
         with open(filename, 'r') as f:
             dict = json.load(f)
         if "rggsc_game_identifier" in dict:
