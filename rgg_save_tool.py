@@ -101,7 +101,8 @@ def process_file(filename, game, encrypt=False):
             # Modify the JSON data within the binary data
             if game != "ik":
                 data = modify_json_binary(decrypted_data, 'rggsc_game_identifier', game)
-
+            else:
+                data = decrypted_data
         with open(outname, "wb") as out_file:
             out_file.write(data)
 
