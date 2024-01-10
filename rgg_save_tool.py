@@ -127,25 +127,27 @@ def main():
     extension = os.path.splitext(filename)[1].lower()
 
     # Try automatic game detection first
-    game_abbr = None
-    if is_game_save(filename, gaiden_headers):
-        game_abbr = "gd"
-    elif is_game_save(filename, y7_headers):
-        game_abbr = "y7"
-    elif is_game_save(filename, y7_gog_headers):
-        game_abbr = "y7_gog"
-    elif is_game_save(filename, yk2_headers):
-        game_abbr = "yk2"
-    elif is_game_save(filename, lj_headers):
-        game_abbr = "lj"
-    elif is_game_save(filename, je_headers):
-        game_abbr = "je"
-    elif is_game_save(filename, ik_headers):
-        game_abbr = "ik"
-    elif is_game_save(filename, y6_headers):
-        game_abbr = "y6"
-
-    print(f"Game is: {game_abbr}")
+    game_abbr = sys.argv[2] if len(sys.argv) > 2 else None
+    if game_abbr and game_abbr in game_abbr_to_name:
+        print(f"Game selected: {game_abbr_to_name[game_abbr]}")
+    else:
+        if is_game_save(filename, gaiden_headers):
+            game_abbr = "gd"
+        elif is_game_save(filename, y7_headers):
+            game_abbr = "y7"
+        elif is_game_save(filename, y7_gog_headers):
+            game_abbr = "y7_gog"
+        elif is_game_save(filename, yk2_headers):
+            game_abbr = "yk2"
+        elif is_game_save(filename, lj_headers):
+            game_abbr = "lj"
+        elif is_game_save(filename, je_headers):
+            game_abbr = "je"
+        elif is_game_save(filename, ik_headers):
+            game_abbr = "ik"
+        elif is_game_save(filename, y6_headers):
+            game_abbr = "y6"
+        print(f"Game is: {game_abbr_to_name[game_abbr]}")
 
     if extension == ".json" and game_abbr != "ik" and game_abbr:
         with open(filename, 'r') as f:
