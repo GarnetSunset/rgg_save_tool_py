@@ -13,3 +13,12 @@ added proper checksum calculation and automatic game detection to the code, and 
 - Ishin Key discovered by [@Ret-HZ](https://github.com/Ret-HZ)
 - YLAD GOG Key discovered by [@Timo654](https://github.com/Timo654)
 - Yakuza Kiwami 2 Key discovered by [@simontime](https://github.com/simontime)
+
+## Finding save keys
+
+In Ghidra
+
+- Search for a function called: "GetFileTime", and scroll up on each xref, find a string in that function. If not find
+  the next.
+- Find strings for: "%s/%s/save%03d_icon0.dds" and scroll up on each xref, to find "GetFileTime" and search for a
+  string. 
