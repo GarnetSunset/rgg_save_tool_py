@@ -74,6 +74,15 @@ def crc32_checksum(data):
     return zlib.crc32(data) & 0xFFFFFFFF
 
 
+def crc32b(data):
+    crc = 0xFFFFFFFF
+    for b in data:
+        crc ^= b
+        for _ in range(8):
+            crc = (crc >> 1) ^ (0xEDB88320 if (crc & 1) else 0)
+    return ~crc & 0xFFFFFFFF
+
+
 def process_file(filename, game, encrypt=False):
     key = game_keys.get(game)
     if not key:
@@ -82,13 +91,8 @@ def process_file(filename, game, encrypt=False):
 
     # Adjusted file naming logic
     if encrypt:
-        # Remove '.json' extension when encrypting
-        if filename.lower().endswith(".json"):
-            outname = filename[:-5]
-        else:
-            outname = filename + ".sav"
+        outname = filename[:-5] if filename.lower().endswith(".json") else filename + ".sav"
     else:
-        # Add '.json' extension when decrypting
         outname = filename + ".json"
 
     try:
@@ -96,16 +100,27 @@ def process_file(filename, game, encrypt=False):
             data = in_file.read()
 
         if encrypt:
-            checksum = crc32_checksum(data)
-            data = xor_data(data, key)
-            data += checksum.to_bytes(4, byteorder="little")
+            if game == "ik" or game == "ishin":
+                checksum = crc32b(data[:-8])
+                data = xor_data(data[:-8], key)
+                data += checksum.to_bytes(4, byteorder="little")
+                data += data[-8:-4]  # Append the original last 8 bytes
+            else:
+                checksum = crc32b(data)
+                data = xor_data(data, key)
+                data += checksum.to_bytes(4, byteorder="little")
         else:
-            decrypted_data = xor_data(data[:-4], key)
+            if game == "ik" or game == "ishin":
+                checksum_data = data[-8:-4]
+                data = xor_data(data[:-8], key)  # Decrypt excluding the last 8 bytes
+                # Compare the checksum here if needed
+            else:
+                data = xor_data(data[:-4], key)  # Decrypt excluding the last 4 bytes
+
             # Modify the JSON data within the binary data
             if game != "ik":
-                data = modify_json_binary(decrypted_data, 'rggsc_game_identifier', game)
-            else:
-                data = decrypted_data
+                data = modify_json_binary(data, 'rggsc_game_identifier', game)
+
         with open(outname, "wb") as out_file:
             out_file.write(data)
 
@@ -152,6 +167,24 @@ def main():
             game_abbr = "ik"
         elif is_game_save(filename, y6_headers):
             game_abbr = "y6"
+
+    # If game_abbr is None or not a valid key, ask the user to enter the game manually
+    if not game_abbr or game_abbr not in game_abbr_to_name:
+        print("Game not detected automatically or invalid game abbreviation provided.")
+        print("Select the game:")
+        for idx, game_name in enumerate(game_abbr_to_name.values(), start=1):
+            print(f"{idx}. {game_name}")
+
+        try:
+            game_idx = int(input("Enter the game number: ")) - 1
+            if game_idx < 0 or game_idx >= len(game_abbr_to_name):
+                print("Invalid selection. Exiting.")
+                return
+            game_abbr = list(game_abbr_to_name.keys())[game_idx]
+        except ValueError:
+            print("Invalid input. Exiting.")
+            return
+    else:
         print(f"Game is: {game_abbr_to_name[game_abbr]}")
 
     if extension == ".json" and game_abbr != "ik" and game_abbr:
