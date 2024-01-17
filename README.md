@@ -13,6 +13,7 @@ added proper checksum calculation and automatic game detection to the code, and 
 - Ishin Key discovered by [@Ret-HZ](https://github.com/Ret-HZ)
 - YLAD GOG Key discovered by [@Timo654](https://github.com/Timo654)
 - Yakuza Kiwami 2 Key discovered by [@simontime](https://github.com/simontime)
+- Like a Dragon: Infinite Wealth Key discovered by [Committee of Nerds](https://www.youtube.com/watch?v=CjN4aUI-RJM)
 
 ## Finding save keys
 
