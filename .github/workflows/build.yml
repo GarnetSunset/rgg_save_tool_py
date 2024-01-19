@@ -99,6 +99,13 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_ID: ${{ env.RELEASE_ID }}
+          
+      - name: List files in dist (Debug)
+        run: |
+          echo "Listing files in ./dist/"
+          ls -la ./dist/
+          echo "Confirming file existence directly"
+          ls -la ${{ github.workspace }}/dist/rgg_save_tool*
 
       - name: Upload Release Asset (Ubuntu and macOS)
         if: matrix.os != 'windows-latest'
