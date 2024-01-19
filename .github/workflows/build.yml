@@ -13,10 +13,10 @@ jobs:
         os: [ ubuntu-latest, windows-latest, macos-latest ]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v5
         with:
           python-version: '3.x'
 
@@ -28,12 +28,8 @@ jobs:
         run: |
           pyinstaller --onefile rgg_save_tool.py
 
-      - name: List Artifacts
-        run: ls ./dist
-
-
       - name: Upload Artifact
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: rgg_save_tool-${{ matrix.os }}
           path: dist/rgg_save_tool*
@@ -45,7 +41,7 @@ jobs:
       contents: write
       packages: write
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
       - name: Download Artifacts
         uses: actions/download-artifact@v2
@@ -102,12 +98,13 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_ID: ${{ env.RELEASE_ID }}
 
-      - name: Upload Release Assets
+      - name: Upload Release Asset
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ env.UPLOAD_URL }}
-          asset_path: ./dist/rgg_save_tool-${{ matrix.os }}
-          asset_name: rgg_save_tool-${{ matrix.os }}
+          asset_path: ${{ github.workspace }}/dist/${{ matrix.os == 'windows-latest' && 'rgg_save_tool.exe' || 'rgg_save_tool' }}
+          asset_name: rgg_save_tool-${{ matrix.os }}${{ matrix.os == 'windows-latest' && '.exe' || '' }}
           asset_content_type: application/octet-stream
+
