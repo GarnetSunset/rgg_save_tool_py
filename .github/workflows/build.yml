@@ -57,24 +57,53 @@ jobs:
           RELEASE_ID=$(echo "$RELEASE_DATA" | jq -r .id)
           echo "UPLOAD_URL=$UPLOAD_URL" >> $GITHUB_ENV
           echo "RELEASE_ID=$RELEASE_ID" >> $GITHUB_ENV
-      
 
-      - name: Delete Old Asset
+      - name: Delete Old Asset (Unix-like)
+        if: runner.os != 'Windows'
         run: |
-          ASSET_ID=$(curl -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-          "https://api.github.com/repos/GarnetSunset/rgg_save_tool_py/releases/${{ steps.get_release.outputs.release_id }}/assets" | \
-          jq '.[] | select(.name == "rgg_save_tool-ubuntu-latest") | .id')
-          if [ "$ASSET_ID" != "" ]; then
-            curl -X DELETE -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-            "https://api.github.com/repos/GarnetSunset/rgg_save_tool_py/releases/assets/$ASSET_ID"
-          fi
+          # Fetch the assets for the release
+          ASSETS_JSON=$(curl -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+          "https://api.github.com/repos/GarnetSunset/rgg_save_tool_py/releases/${{ env.RELEASE_ID }}/assets")
+          
+          # Extract and delete assets
+          for os in ubuntu-latest windows-latest macos-latest; do
+            ASSET_ID=$(echo "$ASSETS_JSON" | jq ".[] | select(.name == \"rgg_save_tool-$os\") | .id")
+            if [ "$ASSET_ID" != "" ] && [ "$ASSET_ID" != "null" ]; then
+              curl -X DELETE -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+              "https://api.github.com/repos/GarnetSunset/rgg_save_tool_py/releases/assets/$ASSET_ID"
+            fi
+          done
 
-      - name: Upload Release Asset
+      - name: Delete Old Asset (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          # Fetch the assets for the release
+          $headers = @{
+            "Authorization" = "token $env:GITHUB_TOKEN"
+          }
+          $assetsUrl = "https://api.github.com/repos/GarnetSunset/rgg_save_tool_py/releases/$env:RELEASE_ID/assets"
+          $assetsJson = Invoke-RestMethod -Uri $assetsUrl -Headers $headers
+          
+          # Extract and delete assets
+          foreach ($os in @('ubuntu-latest', 'windows-latest', 'macos-latest')) {
+            $asset = $assetsJson | Where-Object { $_.name -eq "rgg_save_tool-$os" }
+            $assetId = $asset.id
+            if ($assetId) {
+              $deleteUrl = "https://api.github.com/repos/GarnetSunset/rgg_save_tool_py/releases/assets/$assetId"
+              Invoke-RestMethod -Uri $deleteUrl -Method 'DELETE' -Headers $headers
+            }
+          }
+        shell: pwsh
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_ID: ${{ env.RELEASE_ID }}
+
+      - name: Upload Release Assets
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          upload_url: ${{ steps.get_release.outputs.upload_url }}
-          asset_path: ./dist/rgg_save_tool-ubuntu-latest
-          asset_name: rgg_save_tool-ubuntu-latest
+          upload_url: ${{ env.UPLOAD_URL }}
+          asset_path: ./dist/rgg_save_tool-${{ matrix.os }}
+          asset_name: rgg_save_tool-${{ matrix.os }}
           asset_content_type: application/octet-stream
