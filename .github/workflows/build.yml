@@ -48,7 +48,10 @@ jobs:
       - name: Download Artifacts
         uses: actions/download-artifact@v2
         with:
-          path: dist
+          path: dist/
+
+      - name: List files in dist after downloading artifacts
+        run: ls -la dist/
 
       - name: Get Release
         id: get_release
@@ -99,7 +102,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_ID: ${{ env.RELEASE_ID }}
-          
+
       - name: List files in dist (Debug)
         run: |
           echo "Listing files in ./dist/"
@@ -107,15 +110,26 @@ jobs:
           echo "Confirming file existence directly"
           ls -la ${{ github.workspace }}/dist/rgg_save_tool*
 
-      - name: Upload Release Asset (Ubuntu and macOS)
-        if: matrix.os != 'windows-latest'
+      - name: Upload Release Asset (Ubuntu)
+        if: matrix.os == 'ubuntu-latest'
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ env.UPLOAD_URL }}
-          asset_path: ./dist/rgg_save_tool
-          asset_name: rgg_save_tool-${{ matrix.os }}
+          asset_path: dist/rgg_save_tool-ubuntu-latest
+          asset_name: rgg_save_tool-ubuntu-latest
+          asset_content_type: application/octet-stream
+
+      - name: Upload Release Asset (macOS)
+        if: matrix.os == 'macos-latest'
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ env.UPLOAD_URL }}
+          asset_path: dist/rgg_save_tool-macos-latest
+          asset_name: rgg_save_tool-macos-latest
           asset_content_type: application/octet-stream
 
       - name: Upload Release Asset (Windows)
@@ -125,7 +139,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ env.UPLOAD_URL }}
-          asset_path: ./dist/rgg_save_tool.exe
-          asset_name: rgg_save_tool-${{ matrix.os }}.exe
+          asset_path: dist/rgg_save_tool-windows-latest
+          asset_name: rgg_save_tool-windows-latest
           asset_content_type: application/octet-stream
-
