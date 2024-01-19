@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - 'rgg_save_tool.py'
+  workflow_dispatch:
 
 jobs:
   build:
