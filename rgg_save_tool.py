@@ -74,15 +74,6 @@ def crc32_checksum(data):
     return zlib.crc32(data) & 0xFFFFFFFF
 
 
-def crc32b(data):
-    crc = 0xFFFFFFFF
-    for b in data:
-        crc ^= b
-        for _ in range(8):
-            crc = (crc >> 1) ^ (0xEDB88320 if (crc & 1) else 0)
-    return ~crc & 0xFFFFFFFF
-
-
 def process_file(filename, game, encrypt=False):
     key = game_keys.get(game)
     if not key:
@@ -101,12 +92,12 @@ def process_file(filename, game, encrypt=False):
 
         if encrypt:
             if game == "ik" or game == "ishin":
-                checksum = crc32b(data[:-8])
+                checksum = crc32_checksum(data[:-8])
                 data = xor_data(data[:-8], key)
                 data += checksum.to_bytes(4, byteorder="little")
                 data += data[-8:-4]  # Append the original last 8 bytes
             else:
-                checksum = crc32b(data)
+                checksum = crc32_checksum(data)
                 data = xor_data(data, key)
                 data += checksum.to_bytes(4, byteorder="little")
         else:

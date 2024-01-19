@@ -38,28 +38,38 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - uses: actions/download-artifact@v2
+
+      - name: Download Artifacts
+        uses: actions/download-artifact@v2
         with:
           path: dist
 
-      - name: Create Release
-        id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ github.ref }}
-          release_name: Release ${{ github.ref }}
-          draft: false
-          prerelease: false
+      - name: Get Release
+        id: get_release
+        run: |
+          RELEASE_DATA=$(curl -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+          "https://api.github.com/repos/GarnetSunset/rgg_save_tool_py/releases/tags/1.0")
+          echo "RELEASE_DATA=$RELEASE_DATA" >> $GITHUB_ENV
+          echo "::set-output name=upload_url::$(echo $RELEASE_DATA | jq .upload_url)"
+          echo "::set-output name=release_id::$(echo $RELEASE_DATA | jq .id)"
+
+      - name: Delete Old Asset
+        run: |
+          ASSET_ID=$(curl -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+          "https://api.github.com/repos/GarnetSunset/rgg_save_tool_py/releases/${{ steps.get_release.outputs.release_id }}/assets" | \
+          jq '.[] | select(.name == "rgg_save_tool-ubuntu-latest") | .id')
+          if [ "$ASSET_ID" != "" ]; then
+            curl -X DELETE -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/GarnetSunset/rgg_save_tool_py/releases/assets/$ASSET_ID"
+          fi
 
       - name: Upload Release Asset
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          upload_url: ${{ steps.get_release.outputs.upload_url }}
           asset_path: ./dist/rgg_save_tool-ubuntu-latest
           asset_name: rgg_save_tool-ubuntu-latest
           asset_content_type: application/octet-stream
-    # Repeat the "Upload Release Asset" step for each OS
+
