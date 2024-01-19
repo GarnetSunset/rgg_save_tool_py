@@ -2,8 +2,8 @@ name: Build and Release
 
 on:
   push:
-    tags:
-      - 'v*'
+    paths:
+      - 'rgg_save_tool.py'
 
 jobs:
   build:
@@ -36,6 +36,9 @@ jobs:
   release:
     needs: build
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
     steps:
       - uses: actions/checkout@v2
 
@@ -72,4 +75,3 @@ jobs:
           asset_path: ./dist/rgg_save_tool-ubuntu-latest
           asset_name: rgg_save_tool-ubuntu-latest
           asset_content_type: application/octet-stream
-
