@@ -53,9 +53,11 @@ jobs:
         run: |
           RELEASE_DATA=$(curl -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
           "https://api.github.com/repos/GarnetSunset/rgg_save_tool_py/releases/tags/1.0")
-          echo "RELEASE_DATA=$RELEASE_DATA" >> $GITHUB_ENV
-          echo "::set-output name=upload_url::$(echo $RELEASE_DATA | jq .upload_url)"
-          echo "::set-output name=release_id::$(echo $RELEASE_DATA | jq .id)"
+          UPLOAD_URL=$(echo "$RELEASE_DATA" | jq -r .upload_url)
+          RELEASE_ID=$(echo "$RELEASE_DATA" | jq -r .id)
+          echo "UPLOAD_URL=$UPLOAD_URL" >> $GITHUB_ENV
+          echo "RELEASE_ID=$RELEASE_ID" >> $GITHUB_ENV
+      
 
       - name: Delete Old Asset
         run: |
