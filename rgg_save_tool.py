@@ -1,9 +1,8 @@
+import chardet
 import json
 import os
 import sys
 import zlib
-
-import chardet
 
 # Dictionary of keys for different games
 game_keys = {
@@ -179,7 +178,7 @@ def main():
         print(f"Game is: {game_abbr_to_name[game_abbr]}")
 
     if extension == ".json" and game_abbr != "ik" and game_abbr:
-        with open(filename, 'r') as f:
+        with open(filename, 'r', encoding='utf-8') as f:
             dict = json.load(f)
         if "rggsc_game_identifier" in dict:
             game_abbr = dict['rggsc_game_identifier']
