@@ -1,5 +1,5 @@
+import argparse
 import os
-import sys
 import zlib
 
 # Dictionary of keys for different games
@@ -118,29 +118,40 @@ def decrypt_data(game, data):
         return xor_data(data[:-4], key)
 
 
-def process_file(filename, game, encrypt=False):
-    base, _ = os.path.splitext(filename)
-    if encrypt:
-        outname = f"{base.split('_')[0]}.sav"  # Restore to original .sav name
-    else:
-        outname = f"{base}_{game}.json"  # Append game abbreviation for JSON
+def process_file(input_file, game, output_file=None):
+    base, ext = os.path.splitext(input_file)
+
+    encrypt = True if ext == ".json" else None
+    encrypt = False if ext in (".sav", ".sys") else encrypt
+
+    if encrypt is None:
+        print(f"Unsupported file type for {input_file}.")
+        exit(1)
+
+    if output_file is None:
+        if encrypt:
+            # Restore to original .sav name
+            output_file = f"{base.split("_")[0]}.sav"
+        else:
+            # Append game abbreviation for JSON
+            output_file = f"{base}_{game}.json"
 
     try:
-        with open(filename, "rb") as in_file:
-            data = in_file.read()
+        with open(input_file, "rb") as f:
+            data = f.read()
 
         if encrypt:
             data = encrypt_data(game, data)
         else:
             data = decrypt_data(game, data)
 
-        with open(outname, "wb") as out_file:
-            out_file.write(data)
+        with open(output_file, "wb") as f:
+            f.write(data)
 
-        print(f"Processed {filename} to {outname}")
+        print(f"Processed '{input_file}' to '{output_file}'")
 
     except IOError as e:
-        print(f"Error processing {filename}: {e.strerror}")
+        print(f"Error processing '{input_file}': {e.strerror}")
         exit(1)
 
 
@@ -150,12 +161,13 @@ def identify_game_from_save(filename):
             file_header = file.read(10)  # Read first 10 bytes
         for game, headers in game_headers.items():
             if any(file_header.startswith(header) for header in headers):
-                print(f"Detected game based on file header: {game_names[game]}")
+                game_name = game_names[game]
+                print(f"Detected game based on file header: {game_name}")
                 return game
         # If no match found, return None
         return None
     except IOError as e:
-        print(f"Error processing {filename}: {e.strerror}")
+        print(f"Error processing '{filename}': {e.strerror}")
         exit(1)
 
 
@@ -180,27 +192,81 @@ def find_game_abbreviation(filename, abbr_arg=None):
     return game_abbr
 
 
-def main():
-    if len(sys.argv) < 2:
-        print("Usage: python script.py [file] [optional: game abbreviation]")
-        print("\ngame abbreviations:")
-        for game, name in game_names.items():
-            print(f"{game}: {name}")
-        return
+def convert_ishin_save(input_file, to_steam, output_file=None):
+    if output_file is None:
+        base, ext = os.path.splitext(input_file)
+        output_file = base + '_converted' + ext
 
-    filename = sys.argv[1]
-    extension = os.path.splitext(filename)[1].lower()
-
-    abbr_arg = sys.argv[2] if len(sys.argv) > 2 else None
-    game_abbr = find_game_abbreviation(filename, abbr_arg)
-
-    if extension == ".json":
-        process_file(filename, game_abbr, encrypt=True)
-    elif extension in (".sav", ".sys"):
-        process_file(filename, game_abbr)
-    else:
-        print(f"Unsupported file type for {filename}.")
+    try:
+        with open(input_file, 'rb') as f:
+            data = bytearray(f.read())
+    except IOError as e:
+        print(f"Error: Failed to open file '{output_file}': {e.strerror}")
         exit(1)
+
+    save_from = "Steam" if to_steam else "Game Pass"
+    save_to = "Game Pass" if to_steam else "Steam"
+    print(f'Converting save file from {save_from} to {save_to}.')
+    # Replace the 12th byte from the end of the file with the new byte
+    # Determine the byte to write based on the --to-steam/--to-gamepass
+    data[-12] = 0x21 if to_steam else 0x8F
+
+    try:
+        with open(output_file, 'wb') as f:
+            f.write(data)
+    except IOError as e:
+        print(f"Error: Failed to write to file '{output_file}': {e.strerror}")
+        exit(1)
+
+    print(f'Successfully converted save from {input_file} to {output_file}.')
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="""Process RGG game save files.
+        Will encrpyt or decrypt save files based on the file extension.
+        Encrypts .json to .sav or .sys
+        Decrypts .sav  or .sys to .json
+
+        When --to-steam or --to-gamepass are present and the save is for
+        Ishin (ik), then the save will be converted to the specified platform.
+        The save will not be encrypted or decrypted.If the save file is not
+        for Ishin the platform conversion arguments are ignored.""",
+        formatter_class=argparse.RawTextHelpFormatter,)
+
+    parser.add_argument("input_file", help="The file to process")
+    parser.add_argument("output_file", help="(optional) The file to save to",
+                        nargs="?", default=None)
+
+    parser.add_argument("--to-steam",
+                        help="Convert Ishin saves to Steam",
+                        action="store_true")
+    parser.add_argument("--to-gamepass",
+                        help="Convert Ishin saves to Gamepass",
+                        action="store_true")
+
+    # Format the game help string
+    game_list = "\n".join(
+                        ["{}: {}".format(k, v) for k, v in game_names.items()])
+    game_help_str = "(Optional) The game abbreviation\n\nChoices:\n"
+    game_help_str += game_list
+    parser.add_argument("-g", dest="game",
+                        help=game_help_str,
+                        choices=game_names)
+
+    args = parser.parse_args()
+
+    game = find_game_abbreviation(args.input_file, args.game)
+
+    if game == "ik" and (args.to_steam or args.to_gamepass):
+        # Make sure exactly one of --to-steam or --to-gamepass was specified
+        if args.to_steam == args.to_gamepass:
+            print("Error: Only --to-steam or --to-gamepass may be specified.")
+            exit(1)
+        convert_ishin_save(args.input_file, args.to_steam, args.output_file)
+        exit(0)
+
+    process_file(args.input_file, game, args.output_file)
 
 
 if __name__ == "__main__":

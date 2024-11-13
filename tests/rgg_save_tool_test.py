@@ -6,6 +6,7 @@ import zlib
 from rgg_save_tool import xor_data, crc32_checksum, encrypt_data, decrypt_data
 from rgg_save_tool import process_file, game_keys, game_headers, main
 from rgg_save_tool import identify_game_from_save, find_game_abbreviation
+from rgg_save_tool import convert_ishin_save
 
 
 class RGGSaveToolTests(unittest.TestCase):
@@ -140,7 +141,7 @@ class TestProcessFile(unittest.TestCase):
     @patch("rgg_save_tool.encrypt_data", return_value="encrypted data")
     @patch("builtins.open", new_callable=mock_open, read_data="test data")
     def test_process_file_encrypt(self, mock_file, mock_encrypt, mock_decrypt):
-        process_file("test_y6.json", "y6", encrypt=True)
+        process_file("test_y6.json", "y6")
         mock_decrypt.assert_not_called()
         mock_encrypt.assert_called_once_with("y6", "test data")
         mock_file.assert_called_with("test.sav", "wb")
@@ -150,7 +151,7 @@ class TestProcessFile(unittest.TestCase):
     @patch("rgg_save_tool.encrypt_data")
     @patch("builtins.open", new_callable=mock_open, read_data="test data")
     def test_process_file_decrypt(self, mock_file, mock_encrypt, mock_decrypt):
-        process_file("test.sav", "y6", encrypt=False)
+        process_file("test.sav", "y6")
         mock_decrypt.assert_called_once_with("y6", "test data")
         mock_encrypt.assert_not_called()
         mock_file.assert_called_with("test_y6.json", "wb")
@@ -200,6 +201,43 @@ class TestFindGameAbbreviation(unittest.TestCase):
     def test_failed_detection(self, mock_from_game_save, mock_exit):
         with self.assertRaises(SystemExit) as cm:
             find_game_abbreviation("test_file.sav")
+        self.assertEqual(cm.exception.code, 1)
+
+
+class TestConvertIshinSave(unittest.TestCase):
+    input_bytes = bytes.fromhex("00000000000000000000000000000000")
+
+    @patch("builtins.open", new_callable=mock_open, read_data=input_bytes)
+    def test_convert_to_steam(self, mock_file):
+        output_bytes = bytes.fromhex("00000000210000000000000000000000")
+
+        convert_ishin_save("input.ext", True)
+
+        mock_file.assert_called_with("input_converted.ext", "wb")
+        mock_file().write.assert_called_once_with(output_bytes)
+
+    @patch("builtins.open", new_callable=mock_open, read_data=input_bytes)
+    def test_convert_to_gamepass(self, mock_file):
+        output_bytes = bytes.fromhex("000000008F0000000000000000000000")
+
+        convert_ishin_save("input.ext", False)
+
+        mock_file.assert_called_with("input_converted.ext", "wb")
+        mock_file().write.assert_called_once_with(output_bytes)
+
+    @patch("builtins.open", new_callable=mock_open, read_data=input_bytes)
+    def test_default_output_file(self, mock_file):
+        output_file = "output.ext"
+        output_bytes = bytes.fromhex("00000000210000000000000000000000")
+        convert_ishin_save("input.ext", True, output_file)
+
+        mock_file.assert_called_with(output_file, "wb")
+        mock_file().write.assert_called_once_with(output_bytes)
+
+    @patch("builtins.open", side_effect=IOError("Test IOError"))
+    def test_io_error(self, mock_file):
+        with self.assertRaises(SystemExit) as cm:
+            convert_ishin_save("input.ext", True)
         self.assertEqual(cm.exception.code, 1)
 
 
