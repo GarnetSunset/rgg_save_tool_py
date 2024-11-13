@@ -44,7 +44,8 @@ game_headers = {
     ],
     "lj": [
         b"\x11\x69\x63\x27\x20\x04\x15\x69\x00\x54",
-        #b"\x11\x69\x63\x27\x20\x04\x15\x69\x02\x40", # conflicts with second gd header
+        # conflicts with second gd header
+        # b"\x11\x69\x63\x27\x20\x04\x15\x69\x02\x40",
     ],
     "y6": [
         b"\x2d\x6b\x1d\x04\x07\x22\x41\x51\x7f\x43",
@@ -77,6 +78,7 @@ def xor_data(data, key):
 def crc32_checksum(data):
     return zlib.crc32(data) & 0xFFFFFFFF
 
+
 def encrypt_data(game, data):
     key = game_keys.get(game)
     if not key:
@@ -85,25 +87,36 @@ def encrypt_data(game, data):
 
     # Special handling for Ishin
     if game == "ik":
-        encoded_data =  xor_data(data[:-16], key) # Exclude checksum and unknown data
-        encoded_data +=  data[-16:]  # Append checksum and unknown data
-        encoded_data[-8:-4] = crc32_checksum(data[:-16]).to_bytes(4, byteorder="little") # Update checksum
+        # Exclude checksum and unknown data
+        encoded_data = xor_data(data[:-16], key)
+        # Append checksum and unknown data
+        encoded_data += data[-16:]
+        checksum = crc32_checksum(data[:-16])
+        # Update the checksum
+        encoded_data[-8:-4] = checksum.to_bytes(4, byteorder="little")
         return encoded_data
     else:
-        return xor_data(data, key) + crc32_checksum(data).to_bytes(4, byteorder="little")
+        encoded_data = xor_data(data, key)
+        encoded_data += crc32_checksum(data).to_bytes(4, byteorder="little")
+        return encoded_data
+
 
 def decrypt_data(game, data):
     key = game_keys.get(game)
     if not key:
         print(f"Unsupported game: {game}")
         exit(1)
-    
+
     # Special handling for Ishin
     if game == "ik":
-        decoded_data = xor_data(data[:-16], key)  # Remove checksum and unknown data
-        return decoded_data + data[-16:]  # Append checksum and unknown data
+        # Remove checksum and unknown data before decoding
+        decoded_data = xor_data(data[:-16], key)
+        # Append checksum and unknown data
+        return decoded_data + data[-16:]
     else:
-        return xor_data(data[:-4], key) # Remove checksum assumed to be last 4 bytes
+        # Remove checksum assumed to be last 4 bytes
+        return xor_data(data[:-4], key)
+
 
 def process_file(filename, game, encrypt=False):
     base, _ = os.path.splitext(filename)
@@ -130,6 +143,7 @@ def process_file(filename, game, encrypt=False):
         print(f"Error processing {filename}: {e.strerror}")
         exit(1)
 
+
 def identify_game_from_save(filename):
     try:
         with open(filename, "rb") as file:
@@ -144,10 +158,10 @@ def identify_game_from_save(filename):
         print(f"Error processing {filename}: {e.strerror}")
         exit(1)
 
-def find_game_abbreviation(filename):
+
+def find_game_abbreviation(filename, abbr_arg=None):
     # Attempt to get game from command line argument
-    game_abbr = sys.argv[2] if len(sys.argv) > 2 else None
-    if game_abbr not in game_names: game_abbr = None
+    game_abbr = None if abbr_arg not in game_names else abbr_arg
 
     # Attempt to detect game from filename
     if not game_abbr:
@@ -159,11 +173,12 @@ def find_game_abbreviation(filename):
     # If not found in filename, try detecting from file header
     if not game_abbr:
         game_abbr = identify_game_from_save(filename)
-    
+
     if not game_abbr:
-        print("Failed to detect game automatically. Please specify game abbreviation.")
+        print("Failed to detect game. Please specify a game abbreviation.")
         exit(1)
     return game_abbr
+
 
 def main():
     if len(sys.argv) < 2:
@@ -176,7 +191,8 @@ def main():
     filename = sys.argv[1]
     extension = os.path.splitext(filename)[1].lower()
 
-    game_abbr = find_game_abbreviation(filename)
+    abbr_arg = sys.argv[2] if len(sys.argv) > 2 else None
+    game_abbr = find_game_abbreviation(filename, abbr_arg)
 
     if extension == ".json":
         process_file(filename, game_abbr, encrypt=True)
@@ -185,6 +201,7 @@ def main():
     else:
         print(f"Unsupported file type for {filename}.")
         exit(1)
+
 
 if __name__ == "__main__":
     main()
