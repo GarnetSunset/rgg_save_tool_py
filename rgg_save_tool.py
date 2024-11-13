@@ -16,7 +16,7 @@ game_keys = {
 }
 
 # Mapping of human-readable game names to their key abbreviations
-game_abbr_to_name = {
+game_names = {
     "ik": "Like a Dragon: Ishin (ik)",  # Ret-HZ asked for this
     "je": "Judgment (je)",
     "lj": "Lost Judgment (lj)",
@@ -44,7 +44,7 @@ game_headers = {
     ],
     "lj": [
         b"\x11\x69\x63\x27\x20\x04\x15\x69\x00\x54",
-        b"\x11\x69\x63\x27\x20\x04\x15\x69\x02\x40",
+        #b"\x11\x69\x63\x27\x20\x04\x15\x69\x02\x40", # conflicts with second gd header
     ],
     "y6": [
         b"\x2d\x6b\x1d\x04\x07\x22\x41\x51\x7f\x43",
@@ -77,14 +77,36 @@ def xor_data(data, key):
 def crc32_checksum(data):
     return zlib.crc32(data) & 0xFFFFFFFF
 
-
-def process_file(filename, game, encrypt=False):
+def encrypt_data(game, data):
     key = game_keys.get(game)
     if not key:
         print(f"Unsupported game: {game}")
-        return
+        exit(1)
 
-    base, ext = os.path.splitext(filename)
+    # Special handling for Ishin
+    if game == "ik":
+        encoded_data =  xor_data(data[:-16], key) # Exclude checksum and unknown data
+        encoded_data +=  data[-16:]  # Append checksum and unknown data
+        encoded_data[-8:-4] = crc32_checksum(data[:-16]).to_bytes(4, byteorder="little") # Update checksum
+        return encoded_data
+    else:
+        return xor_data(data, key) + crc32_checksum(data).to_bytes(4, byteorder="little")
+
+def decrypt_data(game, data):
+    key = game_keys.get(game)
+    if not key:
+        print(f"Unsupported game: {game}")
+        exit(1)
+    
+    # Special handling for Ishin
+    if game == "ik":
+        decoded_data = xor_data(data[:-16], key)  # Remove checksum and unknown data
+        return decoded_data + data[-16:]  # Append checksum and unknown data
+    else:
+        return xor_data(data[:-4], key) # Remove checksum assumed to be last 4 bytes
+
+def process_file(filename, game, encrypt=False):
+    base, _ = os.path.splitext(filename)
     if encrypt:
         outname = f"{base.split('_')[0]}.sav"  # Restore to original .sav name
     else:
@@ -95,13 +117,9 @@ def process_file(filename, game, encrypt=False):
             data = in_file.read()
 
         if encrypt:
-            data = xor_data(data, key) + crc32_checksum(data).to_bytes(
-                4, byteorder="little"
-            )
+            data = encrypt_data(game, data)
         else:
-            data = xor_data(
-                data[:-4], key
-            )  # Remove checksum assumed to be last 4 bytes
+            data = decrypt_data(game, data)
 
         with open(outname, "wb") as out_file:
             out_file.write(data)
@@ -109,44 +127,56 @@ def process_file(filename, game, encrypt=False):
         print(f"Processed {filename} to {outname}")
 
     except IOError as e:
-        print(f"Error processing {filename}: {e}")
+        print(f"Error processing {filename}: {e.strerror}")
+        exit(1)
 
-
-def is_game_save(file_path, game):
+def identify_game_from_save(filename):
     try:
-        with open(file_path, "rb") as file:
+        with open(filename, "rb") as file:
             file_header = file.read(10)  # Read first 10 bytes
-        return any(file_header.startswith(header) for header in game_headers[game])
-    except KeyError:
-        return False
+        for game, headers in game_headers.items():
+            if any(file_header.startswith(header) for header in headers):
+                print(f"Detected game based on file header: {game_names[game]}")
+                return game
+        # If no match found, return None
+        return None
+    except IOError as e:
+        print(f"Error processing {filename}: {e.strerror}")
+        exit(1)
 
+def find_game_abbreviation(filename):
+    # Attempt to get game from command line argument
+    game_abbr = sys.argv[2] if len(sys.argv) > 2 else None
+    if game_abbr not in game_names: game_abbr = None
+
+    # Attempt to detect game from filename
+    if not game_abbr:
+        for abbr in game_names:
+            if f"_{abbr}." in filename:
+                game_abbr = abbr
+                break
+
+    # If not found in filename, try detecting from file header
+    if not game_abbr:
+        game_abbr = identify_game_from_save(filename)
+    
+    if not game_abbr:
+        print("Failed to detect game automatically. Please specify game abbreviation.")
+        exit(1)
+    return game_abbr
 
 def main():
     if len(sys.argv) < 2:
         print("Usage: python script.py [file] [optional: game abbreviation]")
+        print("\ngame abbreviations:")
+        for game, name in game_names.items():
+            print(f"{game}: {name}")
         return
 
     filename = sys.argv[1]
     extension = os.path.splitext(filename)[1].lower()
 
-    # Attempt to detect game from filename
-    game_abbr = None
-    for key in game_keys:
-        if f"_{key}." in filename:
-            game_abbr = key
-            break
-
-    # If not found in filename, try detecting from file header
-    if not game_abbr:
-        for game, headers in game_headers.items():
-            if is_game_save(filename, game):
-                game_abbr = game
-                print(f"Detected game based on file header: {game_abbr_to_name[game]}")
-                break
-
-    if not game_abbr:
-        print("Failed to detect game automatically. Please specify game abbreviation.")
-        return
+    game_abbr = find_game_abbreviation(filename)
 
     if extension == ".json":
         process_file(filename, game_abbr, encrypt=True)
@@ -154,7 +184,7 @@ def main():
         process_file(filename, game_abbr)
     else:
         print(f"Unsupported file type for {filename}.")
-
+        exit(1)
 
 if __name__ == "__main__":
     main()
