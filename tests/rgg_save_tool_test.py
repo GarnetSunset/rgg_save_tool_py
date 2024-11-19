@@ -6,7 +6,6 @@ import zlib
 from rgg_save_tool import xor_data, crc32_checksum, encrypt_data, decrypt_data
 from rgg_save_tool import process_file, game_keys, game_headers, main
 from rgg_save_tool import identify_game_from_save, find_game_abbreviation
-from rgg_save_tool import convert_ishin_save
 
 
 class RGGSaveToolTests(unittest.TestCase):
@@ -35,9 +34,6 @@ class RGGSaveToolTests(unittest.TestCase):
             data = in_file.read()
         self.assertEqual(zlib.crc32(data), 349881174)
 
-        # Clean up the temporary files
-        os.remove(self.encrypted_file)
-
     @patch("sys.argv", ["rgg_save_tool.py", "saves/test_ik.sav"])
     def test_decrypt_end_to_end(self):
         main()  # Decrypt the decrypted file
@@ -47,15 +43,27 @@ class RGGSaveToolTests(unittest.TestCase):
             data = in_file.read()
         self.assertEqual(zlib.crc32(data), 1644199928)
 
-        # Clean up the temporary files
-        os.remove(self.decrypted_file)
+    converted_file = "test_converted.sav"
 
+    # Test save is from steam.
+    @patch("sys.argv", ["rgg_save_tool.py", "saves/test_ik.sav", converted_file, "-g", "ik", "--to-gamepass"])
+    def test_ik_to_gamepass_end_to_end(self):
+        main()  # Decrypt the decrypted file
+        self.assertTrue(os.path.exists(self.converted_file))
+
+        with open(self.converted_file, "rb") as in_file:
+            data = in_file.read()
+        self.assertEqual(zlib.crc32(data), 2233312336)
+
+    # Clean up any remaining files after all tests have run, pass or fail
     @classmethod
     def tearDownClass(self):
         if os.path.exists(self.encrypted_file):
             os.remove(self.encrypted_file)
         if os.path.exists(self.decrypted_file):
             os.remove(self.decrypted_file)
+        if os.path.exists(self.converted_file):
+            os.remove(self.converted_file)
 
 
 class TestEncryptData(unittest.TestCase):
@@ -80,7 +88,7 @@ class TestEncryptData(unittest.TestCase):
             # Skip "ik" as it has special handling
             if game != "ik":
                 data = b"testdata"
-                checksum = crc32_checksum(data) 
+                checksum = crc32_checksum(data)
                 encrypted_data = encrypt_data(game, data)
                 # Check if checksum is correct
                 self.assertEqual(
@@ -120,7 +128,7 @@ class TestDecryptData(unittest.TestCase):
     def test_unsupported_game(self):
         with self.assertRaises(SystemExit) as cm:
             encrypt_data("unsupported_game", b"testdata")
-        self.assertEqual(cm.exception.code, 1) 
+        self.assertEqual(cm.exception.code, 1)
 
 
 class TestProcessFile(unittest.TestCase):
@@ -139,20 +147,20 @@ class TestProcessFile(unittest.TestCase):
 
     @patch("rgg_save_tool.decrypt_data")
     @patch("rgg_save_tool.encrypt_data", return_value="encrypted data")
-    @patch("builtins.open", new_callable=mock_open, read_data="test data")
+    @patch("builtins.open", new_callable=mock_open, read_data=b"test data")
     def test_process_file_encrypt(self, mock_file, mock_encrypt, mock_decrypt):
         process_file("test_y6.json", "y6")
         mock_decrypt.assert_not_called()
-        mock_encrypt.assert_called_once_with("y6", "test data")
+        mock_encrypt.assert_called_once_with("y6", b"test data")
         mock_file.assert_called_with("test.sav", "wb")
         mock_file().write.assert_called_once_with("encrypted data")
 
     @patch("rgg_save_tool.decrypt_data", return_value="decrypted data")
     @patch("rgg_save_tool.encrypt_data")
-    @patch("builtins.open", new_callable=mock_open, read_data="test data")
+    @patch("builtins.open", new_callable=mock_open, read_data=b"test data")
     def test_process_file_decrypt(self, mock_file, mock_encrypt, mock_decrypt):
         process_file("test.sav", "y6")
-        mock_decrypt.assert_called_once_with("y6", "test data")
+        mock_decrypt.assert_called_once_with("y6", b"test data")
         mock_encrypt.assert_not_called()
         mock_file.assert_called_with("test_y6.json", "wb")
         mock_file().write.assert_called_once_with("decrypted data")
@@ -211,34 +219,29 @@ class TestConvertIshinSave(unittest.TestCase):
     def test_convert_to_steam(self, mock_file):
         output_bytes = bytes.fromhex("00000000210000000000000000000000")
 
-        convert_ishin_save("input.ext", True)
+        process_file("input.sys", "ik", to_steam=True)
 
-        mock_file.assert_called_with("input_converted.ext", "wb")
+        mock_file.assert_called_with("input_ik.json", "wb")
         mock_file().write.assert_called_once_with(output_bytes)
 
     @patch("builtins.open", new_callable=mock_open, read_data=input_bytes)
     def test_convert_to_gamepass(self, mock_file):
         output_bytes = bytes.fromhex("000000008F0000000000000000000000")
 
-        convert_ishin_save("input.ext", False)
+        process_file("input.sys", "ik", to_gamepass=True)
 
-        mock_file.assert_called_with("input_converted.ext", "wb")
+        mock_file.assert_called_with("input_ik.json", "wb")
         mock_file().write.assert_called_once_with(output_bytes)
 
     @patch("builtins.open", new_callable=mock_open, read_data=input_bytes)
     def test_default_output_file(self, mock_file):
-        output_file = "output.ext"
+        output_filename = "output.ext"
         output_bytes = bytes.fromhex("00000000210000000000000000000000")
-        convert_ishin_save("input.ext", True, output_file)
+        process_file("input.sys", "ik",
+                     to_steam=True, output_file=output_filename)
 
-        mock_file.assert_called_with(output_file, "wb")
+        mock_file.assert_called_with(output_filename, "wb")
         mock_file().write.assert_called_once_with(output_bytes)
-
-    @patch("builtins.open", side_effect=IOError("Test IOError"))
-    def test_io_error(self, mock_file):
-        with self.assertRaises(SystemExit) as cm:
-            convert_ishin_save("input.ext", True)
-        self.assertEqual(cm.exception.code, 1)
 
 
 if __name__ == "__main__":

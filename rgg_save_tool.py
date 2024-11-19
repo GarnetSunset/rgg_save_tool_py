@@ -225,14 +225,17 @@ def main():
     print(f"Current working directory: {os.getcwd()}")
     parser.add_argument("input_file", help="The file to process")
     parser.add_argument(
-        "output_file", help="(optional) The file to save to", nargs="?", default=None
+        "output_file", help="(optional) The file to save to", nargs="?",
+        default=None
     )
 
     parser.add_argument(
-        "--to-steam", help="Convert Ishin saves to Steam", action="store_true"
+        "--to-steam", help="Convert Ishin saves to Steam",
+        action="store_true"
     )
     parser.add_argument(
-        "--to-gamepass", help="Convert Ishin saves to Game Pass", action="store_true"
+        "--to-gamepass", help="Convert Ishin saves to Game Pass",
+        action="store_true"
     )
 
     # Game abbreviation argument
@@ -251,7 +254,8 @@ def main():
 
     # Process the file (encrypt, decrypt, or convert)
     process_file(
-        args.input_file, game, args.output_file, args.to_steam, args.to_gamepass
+        args.input_file, game,
+        args.output_file, args.to_steam, args.to_gamepass
     )
 
 
