@@ -105,8 +105,8 @@ jobs:
             ### Commits Since Last Release
             ${{ env.COMMITS }}
           files: |
-            dist/rgg_save_tool-windows.exe
-            dist/rgg_save_tool-linux
-            dist/rgg_save_tool-macos
+            dist/rgg_save_tool-windows-latest/rgg_save_tool-windows.exe
+            dist/rgg_save_tool-ubuntu-latest/rgg_save_tool-linux
+            dist/rgg_save_tool-macos-latest/rgg_save_tool-macos
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
