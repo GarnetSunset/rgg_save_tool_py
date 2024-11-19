@@ -118,33 +118,56 @@ def decrypt_data(game, data):
         return xor_data(data[:-4], key)
 
 
-def process_file(input_file, game, output_file=None):
+def process_file(input_file, game, output_file=None, to_steam=None, to_gamepass=None):
+    """
+    Processes the input file: encrypt, decrypt, or convert Ishin saves.
+    - Encrypts/decrypts based on file extension (.json -> .sav/sys and vice versa).
+    - Converts Ishin saves if `to_steam` or `to_gamepass` is specified.
+    """
     base, ext = os.path.splitext(input_file)
 
-    encrypt = True if ext == ".json" else None
-    encrypt = False if ext in (".sav", ".sys") else encrypt
+    # Determine operation (encrypt/decrypt) based on file extension
+    encrypt = ext == ".json"
+    decrypt = ext in (".sav", ".sys")
 
-    if encrypt is None:
+    if not encrypt and not decrypt:
         print(f"Unsupported file type for {input_file}.")
         exit(1)
 
+    # Set default output file name
     if output_file is None:
         if encrypt:
-            # Restore to original .sav name
-            output_file = f"{base.split("_")[0]}.sav"
+            output_file = f"{base.split('_')[0]}.sav"
         else:
-            # Append game abbreviation for JSON
             output_file = f"{base}_{game}.json"
 
     try:
+        # Read input file
         with open(input_file, "rb") as f:
-            data = f.read()
+            data = bytearray(f.read())
 
-        if encrypt:
+        # Ishin-specific platform conversion
+        if game == "ik" and (to_steam or to_gamepass):
+            if to_steam == to_gamepass:  # Ensure exactly one conversion option
+                print(
+                    "Error: Only one of --to-steam or --to-gamepass may be specified."
+                )
+                exit(1)
+
+            save_from = "Steam" if to_gamepass else "Game Pass"
+            save_to = "Game Pass" if to_gamepass else "Steam"
+            print(f"Converting Ishin save from {save_from} to {save_to}.")
+
+            # Modify the 12th byte from the end for platform conversion
+            data[-12] = 0x21 if to_steam else 0x8F
+
+        # Encrypt or decrypt data if no conversion occurred
+        elif encrypt:
             data = encrypt_data(game, data)
-        else:
+        elif decrypt:
             data = decrypt_data(game, data)
 
+        # Write output file
         with open(output_file, "wb") as f:
             f.write(data)
 
@@ -192,81 +215,44 @@ def find_game_abbreviation(filename, abbr_arg=None):
     return game_abbr
 
 
-def convert_ishin_save(input_file, to_steam, output_file=None):
-    if output_file is None:
-        base, ext = os.path.splitext(input_file)
-        output_file = base + '_converted' + ext
-
-    try:
-        with open(input_file, 'rb') as f:
-            data = bytearray(f.read())
-    except IOError as e:
-        print(f"Error: Failed to open file '{output_file}': {e.strerror}")
-        exit(1)
-
-    save_from = "Steam" if to_steam else "Game Pass"
-    save_to = "Game Pass" if to_steam else "Steam"
-    print(f'Converting save file from {save_from} to {save_to}.')
-    # Replace the 12th byte from the end of the file with the new byte
-    # Determine the byte to write based on the --to-steam/--to-gamepass
-    data[-12] = 0x21 if to_steam else 0x8F
-
-    try:
-        with open(output_file, 'wb') as f:
-            f.write(data)
-    except IOError as e:
-        print(f"Error: Failed to write to file '{output_file}': {e.strerror}")
-        exit(1)
-
-    print(f'Successfully converted save from {input_file} to {output_file}.')
-
-
 def main():
     parser = argparse.ArgumentParser(
         description="""Process RGG game save files.
-        Will encrpyt or decrypt save files based on the file extension.
-        Encrypts .json to .sav or .sys
-        Decrypts .sav  or .sys to .json
-
-        When --to-steam or --to-gamepass are present and the save is for
-        Ishin (ik), then the save will be converted to the specified platform.
-        The save will not be encrypted or decrypted.If the save file is not
-        for Ishin the platform conversion arguments are ignored.""",
-        formatter_class=argparse.RawTextHelpFormatter,)
-
+        Encrypts .json to .sav or .sys and decrypts .sav or .sys to .json.
+        Converts Ishin (ik) saves between Steam and Game Pass if specified.""",
+        formatter_class=argparse.RawTextHelpFormatter,
+    )
+    print(f"Current working directory: {os.getcwd()}")
     parser.add_argument("input_file", help="The file to process")
-    parser.add_argument("output_file", help="(optional) The file to save to",
-                        nargs="?", default=None)
+    parser.add_argument(
+        "output_file", help="(optional) The file to save to", nargs="?", default=None
+    )
 
-    parser.add_argument("--to-steam",
-                        help="Convert Ishin saves to Steam",
-                        action="store_true")
-    parser.add_argument("--to-gamepass",
-                        help="Convert Ishin saves to Gamepass",
-                        action="store_true")
+    parser.add_argument(
+        "--to-steam", help="Convert Ishin saves to Steam", action="store_true"
+    )
+    parser.add_argument(
+        "--to-gamepass", help="Convert Ishin saves to Game Pass", action="store_true"
+    )
 
-    # Format the game help string
-    game_list = "\n".join(
-                        ["{}: {}".format(k, v) for k, v in game_names.items()])
-    game_help_str = "(Optional) The game abbreviation\n\nChoices:\n"
-    game_help_str += game_list
-    parser.add_argument("-g", dest="game",
-                        help=game_help_str,
-                        choices=game_names)
+    # Game abbreviation argument
+    game_list = "\n".join([f"{k}: {v}" for k, v in game_names.items()])
+    parser.add_argument(
+        "-g",
+        dest="game",
+        help=f"(Optional) The game abbreviation\n\nChoices:\n{game_list}",
+        choices=game_names,
+    )
 
     args = parser.parse_args()
 
+    # Determine game abbreviation
     game = find_game_abbreviation(args.input_file, args.game)
 
-    if game == "ik" and (args.to_steam or args.to_gamepass):
-        # Make sure exactly one of --to-steam or --to-gamepass was specified
-        if args.to_steam == args.to_gamepass:
-            print("Error: Only --to-steam or --to-gamepass may be specified.")
-            exit(1)
-        convert_ishin_save(args.input_file, args.to_steam, args.output_file)
-        exit(0)
-
-    process_file(args.input_file, game, args.output_file)
+    # Process the file (encrypt, decrypt, or convert)
+    process_file(
+        args.input_file, game, args.output_file, args.to_steam, args.to_gamepass
+    )
 
 
 if __name__ == "__main__":
