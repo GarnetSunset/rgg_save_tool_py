@@ -160,3 +160,7 @@ cython_debug/
 #.idea/
 /*.json
 /*.sav
+
+# Exclude files generated during tests
+saves/test_ik_ik.json
+saves/test.sav

@@ -4,13 +4,14 @@ A tool for encrypting and decrypting RGG studios game saves.
 
 Original Tool by [@SutandoTsukai181](https://github.com/SutandoTsukai181/yk2_save)
 
-Original decryption code from [here](https://gist.github.com/simontime/59661a189b20fc3517b20d8c9f329017) by simontime. I
+Original decryption code from [here](https://gist.github.com/simontime/59661a189b20fc3517b20d8c9f329017) by [@simontime](https://github.com/simontime). I
 added proper checksum calculation and automatic game detection to the code, and converted it to python.
 
 - Yakuza 6 Key discovered by @jason098
 - Judgment Key discovered by [@Ret-HZ](https://github.com/Ret-HZ)
 - Lost Judgment Key discovered by @jason098
 - Ishin Key discovered by [@Ret-HZ](https://github.com/Ret-HZ)
+- Ishin platform format conversion code, and Unit tests by [@jeottesen](https://github.com/jeottesen)
 - YLAD GOG Key discovered by [@Timo654](https://github.com/Timo654)
 - Yakuza Kiwami 2 Key discovered by [@simontime](https://github.com/simontime)
 - Like a Dragon: Infinite Wealth Key discovered by [Committee of Nerds](https://www.youtube.com/watch?v=CjN4aUI-RJM)
