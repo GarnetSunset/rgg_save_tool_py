@@ -38,7 +38,8 @@ jobs:
         if: runner.os == 'Windows'
         run: |
           pyinstaller --onefile rgg_save_tool.py
-          rename dist\rgg_save_tool.exe rgg_save_tool-windows.exe
+          Move-Item -Path dist\rgg_save_tool.exe -Destination dist\rgg_save_tool-windows.exe
+        shell: pwsh
 
       - name: Upload Raw Executable
         uses: actions/upload-artifact@v4
