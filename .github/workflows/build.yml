@@ -45,6 +45,37 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Determine Last Tag
+        id: last-tag
+        run: |
+          LAST_TAG=$(git describe --tags --abbrev=0 || echo "none")
+          echo "LAST_TAG=$LAST_TAG" >> $GITHUB_ENV
+
+      - name: Generate New Tag
+        id: new-tag
+        run: |
+          HASH=$(git rev-parse --short HEAD)
+          if [ "${{ env.LAST_TAG }}" = "none" ]; then
+            TAG_NAME="v1.0-${HASH}"
+          else
+            TAG_NAME="${{ env.LAST_TAG }}-${HASH}"
+          fi
+          echo "TAG_NAME=$TAG_NAME" >> $GITHUB_ENV
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git tag $TAG_NAME
+          git push origin $TAG_NAME
+
+      - name: Get Commits Since Last Tag
+        id: commits
+        run: |
+          if [ "${{ env.LAST_TAG }}" != "none" ]; then
+            COMMITS=$(git log ${{ env.LAST_TAG }}..HEAD --oneline)
+          else
+            COMMITS=$(git log --oneline)
+          fi
+          echo "COMMITS=$COMMITS" >> $GITHUB_ENV
+
       - name: Download Artifacts
         uses: actions/download-artifact@v4
         with:
@@ -62,5 +93,8 @@ jobs:
         with:
           files: |
             dist/rgg_save_tool-*
+          body: |
+            ### Commits Since Last Release:
+            ${{ env.COMMITS }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
