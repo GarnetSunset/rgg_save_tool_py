@@ -13,7 +13,8 @@ jobs:
         os: [ ubuntu-latest, windows-latest, macos-latest ]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -21,17 +22,12 @@ jobs:
           python-version: '3.x'
 
       - name: Install Dependencies
-        run: |
-          pip install pyinstaller
+        run: pip install pyinstaller
 
       - name: Build Executable
-        run: |
-          pyinstaller --onefile rgg_save_tool.py
+        run: pyinstaller --onefile rgg_save_tool.py
 
-      - name: List Artifacts
-        run: ls ./dist
-
-      - name: Upload Artifact
+      - name: Upload Build Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: rgg_save_tool-${{ matrix.os }}
@@ -43,12 +39,13 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
 
       - name: Determine Last Tag
         id: last-tag
         run: |
-          LAST_TAG=$(git describe --tags --abbrev=0 || echo "none")
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "none")
           echo "LAST_TAG=$LAST_TAG" >> $GITHUB_ENV
 
       - name: Generate New Tag
@@ -70,31 +67,26 @@ jobs:
         id: commits
         run: |
           if [ "${{ env.LAST_TAG }}" != "none" ]; then
-            COMMITS=$(git log ${{ env.LAST_TAG }}..HEAD --oneline)
+            COMMITS=$(git log ${{ env.LAST_TAG }}..HEAD --pretty=format:"- %s")
           else
-            COMMITS=$(git log --oneline)
+            COMMITS=$(git log --pretty=format:"- %s")
           fi
           echo "COMMITS=$COMMITS" >> $GITHUB_ENV
 
-      - name: Download Artifacts
+      - name: Download Build Artifacts
         uses: actions/download-artifact@v4
         with:
           path: dist/
 
-      - name: List files in dist (Debug)
-        run: |
-          echo "Listing files in ./dist/"
-          ls -la ./dist/
-          echo "Confirming file existence directly"
-          ls -la ${{ github.workspace }}/dist/rgg_save_tool*
-
-      - name: Create GitHub Release and Upload Assets
-        uses: softprops/action-gh-release@v1
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ env.TAG_NAME }}
+          name: Release ${{ env.TAG_NAME }}
+          body: |
+            ### Commits Since Last Release
+            ${{ env.COMMITS }}
           files: |
             dist/rgg_save_tool-*
-          body: |
-            ### Commits Since Last Release:
-            ${{ env.COMMITS }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
