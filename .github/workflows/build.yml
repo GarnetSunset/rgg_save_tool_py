@@ -27,6 +27,7 @@ jobs:
       - name: Build Executable
         run: |
           pyinstaller --onefile rgg_save_tool.py
+
       - name: List Artifacts
         run: ls ./dist
 
@@ -41,67 +42,13 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      packages: write
     steps:
       - uses: actions/checkout@v4
 
       - name: Download Artifacts
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v4
         with:
           path: dist/
-
-      - name: List files in dist after downloading artifacts
-        run: ls -la dist/
-
-      - name: Get Release
-        id: get_release
-        run: |
-          RELEASE_DATA=$(curl -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-          "https://api.github.com/repos/GarnetSunset/rgg_save_tool_py/releases/tags/1.0")
-          UPLOAD_URL=$(echo "$RELEASE_DATA" | jq -r .upload_url)
-          RELEASE_ID=$(echo "$RELEASE_DATA" | jq -r .id)
-          echo "UPLOAD_URL=$UPLOAD_URL" >> $GITHUB_ENV
-          echo "RELEASE_ID=$RELEASE_ID" >> $GITHUB_ENV
-
-      - name: Delete Old Asset (Unix-like)
-        if: runner.os != 'Windows'
-        run: |
-          # Fetch the assets for the release
-          ASSETS_JSON=$(curl -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-          "https://api.github.com/repos/GarnetSunset/rgg_save_tool_py/releases/${{ env.RELEASE_ID }}/assets")
-          
-          # Extract and delete assets
-          for os in ubuntu-latest windows-latest macos-latest; do
-            ASSET_ID=$(echo "$ASSETS_JSON" | jq ".[] | select(.name == \"rgg_save_tool-$os\") | .id")
-            if [ "$ASSET_ID" != "" ] && [ "$ASSET_ID" != "null" ]; then
-              curl -X DELETE -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-              "https://api.github.com/repos/GarnetSunset/rgg_save_tool_py/releases/assets/$ASSET_ID"
-            fi
-          done
-
-      - name: Delete Old Asset (Windows)
-        if: runner.os == 'Windows'
-        run: |
-          # Fetch the assets for the release
-          $headers = @{
-            "Authorization" = "token $env:GITHUB_TOKEN"
-          }
-          $assetsUrl = "https://api.github.com/repos/GarnetSunset/rgg_save_tool_py/releases/$env:RELEASE_ID/assets"
-          $assetsJson = Invoke-RestMethod -Uri $assetsUrl -Headers $headers
-          
-          # Extract and delete assets
-          foreach ($os in @('ubuntu-latest', 'windows-latest', 'macos-latest')) {
-            $asset = $assetsJson | Where-Object { $_.name -eq "rgg_save_tool-$os" }
-            $assetId = $asset.id
-            if ($assetId) {
-              $deleteUrl = "https://api.github.com/repos/GarnetSunset/rgg_save_tool_py/releases/assets/$assetId"
-              Invoke-RestMethod -Uri $deleteUrl -Method 'DELETE' -Headers $headers
-            }
-          }
-        shell: pwsh
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RELEASE_ID: ${{ env.RELEASE_ID }}
 
       - name: List files in dist (Debug)
         run: |
@@ -110,35 +57,10 @@ jobs:
           echo "Confirming file existence directly"
           ls -la ${{ github.workspace }}/dist/rgg_save_tool*
 
-      - name: Upload Release Asset (Ubuntu)
-        if: matrix.os == 'ubuntu-latest'
-        uses: actions/upload-release-asset@v1
+      - name: Create GitHub Release and Upload Assets
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            dist/rgg_save_tool-*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ env.UPLOAD_URL }}
-          asset_path: dist/rgg_save_tool-ubuntu-latest
-          asset_name: rgg_save_tool-ubuntu-latest
-          asset_content_type: application/octet-stream
-
-      - name: Upload Release Asset (macOS)
-        if: matrix.os == 'macos-latest'
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ env.UPLOAD_URL }}
-          asset_path: dist/rgg_save_tool-macos-latest
-          asset_name: rgg_save_tool-macos-latest
-          asset_content_type: application/octet-stream
-
-      - name: Upload Release Asset (Windows)
-        if: matrix.os == 'windows-latest'
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ env.UPLOAD_URL }}
-          asset_path: dist/rgg_save_tool-windows-latest
-          asset_name: rgg_save_tool-windows-latest
-          asset_content_type: application/octet-stream
