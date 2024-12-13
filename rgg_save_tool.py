@@ -13,6 +13,7 @@ game_keys = {
     "y7_gog": "r3DL11STarYZg",
     "yk2": "STarYZgr3DL11",
     "y8": "STarYZgr3DL11",
+    "v5b": "STarYZgr3DL11",
 }
 
 # Mapping of human-readable game names to their key abbreviations
@@ -25,7 +26,8 @@ game_names = {
     "y7": "Yakuza 7 (y7)",
     "y7_gog": "Yakuza 7 GoG (y7_gog)",
     "yk2": "Yakuza Kiwami 2 (yk2)",
-    "y8": "Like a Dragon: Infinite Wealth",
+    "y8": "Like a Dragon: Infinite Wealth (y8)",
+    "v5b": "Virtua Fighter 5 Open Beta (v5b)",
 }
 
 # Headers for automatic detection
@@ -66,6 +68,9 @@ game_headers = {
     "y8": [
         b"\x28\x76\x4f\x04\x3c\x28\x45\x48\x06\x73",
         b"\x28\x76\x4f\x04\x3c\x28\x45\x48\x05\x68",
+    ],
+    "v5b": [
+        b"\x28\x76\x4f\x04\x3c\x28\x45\x48\x02\x68",
     ],
 }
 
@@ -225,17 +230,14 @@ def main():
     print(f"Current working directory: {os.getcwd()}")
     parser.add_argument("input_file", help="The file to process")
     parser.add_argument(
-        "output_file", help="(optional) The file to save to", nargs="?",
-        default=None
+        "output_file", help="(optional) The file to save to", nargs="?", default=None
     )
 
     parser.add_argument(
-        "--to-steam", help="Convert Ishin saves to Steam",
-        action="store_true"
+        "--to-steam", help="Convert Ishin saves to Steam", action="store_true"
     )
     parser.add_argument(
-        "--to-gamepass", help="Convert Ishin saves to Game Pass",
-        action="store_true"
+        "--to-gamepass", help="Convert Ishin saves to Game Pass", action="store_true"
     )
 
     # Game abbreviation argument
@@ -254,8 +256,7 @@ def main():
 
     # Process the file (encrypt, decrypt, or convert)
     process_file(
-        args.input_file, game,
-        args.output_file, args.to_steam, args.to_gamepass
+        args.input_file, game, args.output_file, args.to_steam, args.to_gamepass
     )
 
 
