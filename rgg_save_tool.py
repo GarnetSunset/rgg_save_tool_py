@@ -1,5 +1,6 @@
 import argparse
 import os
+import sys
 import zlib
 
 # Dictionary of keys for different games
@@ -88,7 +89,7 @@ def encrypt_data(game, data):
     key = game_keys.get(game)
     if not key:
         print(f"Unsupported game: {game}")
-        exit(1)
+        sys.exit(1)
 
     # Special handling for Ishin
     if game == "ik":
