@@ -82,14 +82,18 @@ def xor_data(data, key):
 
 
 def calculate_checksum_y6(data):
+    # Seed value for the checksum calculation
     seed = 0x79BAA6BB6398B6F7
     checksum = 0
     add = 0
+    sz_result = 0
 
     sz = len(data)
     if sz < 0x15B0:
+        # If data size is less than the chunk size, do nothing
         pass
     else:
+        # Calculate the number of full chunks in the data
         sz_result = sz
         result64 = seed
         excess64 = (result64 * sz) >> 64
@@ -98,13 +102,16 @@ def calculate_checksum_y6(data):
         sz -= sz_result * 0x15B0
 
         for s in range(sz_result):
+            # Process each full chunk of data
             read = s * 0x15B0
             for i in range(0x15B0):
                 add += data[i + read]
                 checksum += add
 
+    # Process remaining data after full chunks
     read = sz_result * 0x15B0
     if sz >= 0x10:
+        # Process any remaining data that fits in 16-byte blocks
         result64 = sz >> 4
         result64 *= 0x10
         sz -= result64
@@ -113,10 +120,12 @@ def calculate_checksum_y6(data):
             checksum += add
         read += result64
 
+    # Process any remaining bytes that do not fit in 16-byte blocks
     for i in range(sz):
         add += data[i + read]
         checksum += add
 
+    # Finalize the checksum with modulo operations
     result32 = 0x80078071
     excess32 = ((result32 * add) >> 32) >> 15
     add -= excess32 * 0xFFF1
@@ -125,6 +134,7 @@ def calculate_checksum_y6(data):
     excess32 = ((result32 * checksum) >> 32) >> 15
     checksum -= excess32 * 0xFFF1
 
+    # Combine checksum and add values
     checksum = (checksum << 16) | add
     return checksum
 
