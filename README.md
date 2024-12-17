@@ -2,6 +2,12 @@
 
 A tool for encrypting and decrypting RGG studios game saves.
 
+## Download (For non-technical people)
+
+To download an executable, that is to say a program you can run and use right now: [Download here!](https://github.com/GarnetSunset/rgg_save_tool_py/releases)
+
+## Credits
+
 Original Tool by [@SutandoTsukai181](https://github.com/SutandoTsukai181/yk2_save)
 
 Original decryption code from [here](https://gist.github.com/simontime/59661a189b20fc3517b20d8c9f329017) by [@simontime](https://github.com/simontime). I
