@@ -1,11 +1,20 @@
-import unittest
-from unittest.mock import mock_open, patch
 import os
+import unittest
 import zlib
+from unittest.mock import mock_open, patch
 
-from rgg_save_tool import xor_data, crc32_checksum, encrypt_data, decrypt_data
-from rgg_save_tool import process_file, game_keys, game_headers, main
-from rgg_save_tool import identify_game_from_save, find_game_abbreviation
+from rgg_save_tool import (
+    crc32_checksum,
+    decrypt_data,
+    encrypt_data,
+    find_game_abbreviation,
+    game_headers,
+    game_keys,
+    identify_game_from_save,
+    main,
+    process_file,
+    xor_data,
+)
 
 
 class RGGSaveToolTests(unittest.TestCase):
@@ -15,7 +24,7 @@ class RGGSaveToolTests(unittest.TestCase):
         expected_output = bytes.fromhex("000000000000000000000000")
         self.assertEqual(xor_data(data, key), expected_output)
 
-    @patch("zlib.crc32",  return_value=-123456)
+    @patch("zlib.crc32", return_value=-123456)
     def test_checksum_value_is_unsigned(self, mock_crc32):
         checksum = crc32_checksum(b"test data")
         # Ensure the checksum is converted to be unsigned
@@ -46,7 +55,17 @@ class RGGSaveToolTests(unittest.TestCase):
     converted_file = "test_converted.sav"
 
     # Test save is from steam.
-    @patch("sys.argv", ["rgg_save_tool.py", "saves/test_ik.sav", converted_file, "-g", "ik", "--to-gamepass"])
+    @patch(
+        "sys.argv",
+        [
+            "rgg_save_tool.py",
+            "saves/test_ik.sav",
+            converted_file,
+            "-g",
+            "ik",
+            "--to-gamepass",
+        ],
+    )
     def test_ik_to_gamepass_end_to_end(self):
         main()  # Decrypt the decrypted file
         self.assertTrue(os.path.exists(self.converted_file))
@@ -72,11 +91,9 @@ class TestEncryptData(unittest.TestCase):
 
         # expected_data and last_bytes from the last 32 bytes of test_ik.sav
         expected_data = bytes.fromhex("667545773572574e384d425366754577")
-        last_bytes = bytearray(
-                        bytes.fromhex("ff3902fc210000004bc4f9afff000000"))
+        last_bytes = bytearray(bytes.fromhex("ff3902fc210000004bc4f9afff000000"))
         # update crc32 checksum in last_bytes
-        last_bytes[-8:-4] = crc32_checksum(
-                              unencrypted_data).to_bytes(4, "little")
+        last_bytes[-8:-4] = crc32_checksum(unencrypted_data).to_bytes(4, "little")
 
         encrypted_data = encrypt_data("ik", unencrypted_data + last_bytes)
         self.assertEqual(encrypted_data[:-16], expected_data)
@@ -92,7 +109,8 @@ class TestEncryptData(unittest.TestCase):
                 encrypted_data = encrypt_data(game, data)
                 # Check if checksum is correct
                 self.assertEqual(
-                    int.from_bytes(encrypted_data[-4:], "little"), checksum)
+                    int.from_bytes(encrypted_data[-4:], "little"), checksum
+                )
 
     def test_unsupported_game(self):
         with self.assertRaises(SystemExit) as cm:
@@ -237,8 +255,7 @@ class TestConvertIshinSave(unittest.TestCase):
     def test_default_output_file(self, mock_file):
         output_filename = "output.ext"
         output_bytes = bytes.fromhex("00000000210000000000000000000000")
-        process_file("input.sys", "ik",
-                     to_steam=True, output_file=output_filename)
+        process_file("input.sys", "ik", to_steam=True, output_file=output_filename)
 
         mock_file.assert_called_with(output_filename, "wb")
         mock_file().write.assert_called_once_with(output_bytes)

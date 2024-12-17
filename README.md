@@ -29,4 +29,4 @@ In Ghidra
 - Search for a function called: "GetFileTime", and scroll up on each xref, find a string in that function. If not find
   the next.
 - Find strings for: "%s/%s/save%03d_icon0.dds" and scroll up on each xref, to find "GetFileTime" and search for a
-  string. 
+  string.

@@ -81,6 +81,54 @@ def xor_data(data, key):
     return bytearray((b ^ ord(key[i % key_len])) for i, b in enumerate(data))
 
 
+def calculate_checksum_y6(data):
+    seed = 0x79BAA6BB6398B6F7
+    checksum = 0
+    add = 0
+
+    sz = len(data)
+    if sz < 0x15B0:
+        pass
+    else:
+        sz_result = sz
+        result64 = seed
+        excess64 = (result64 * sz) >> 64
+        sz_result -= excess64
+        sz_result = ((sz_result >> 1) + excess64) >> 12
+        sz -= sz_result * 0x15B0
+
+        for s in range(sz_result):
+            read = s * 0x15B0
+            for i in range(0x15B0):
+                add += data[i + read]
+                checksum += add
+
+    read = sz_result * 0x15B0
+    if sz >= 0x10:
+        result64 = sz >> 4
+        result64 *= 0x10
+        sz -= result64
+        for i in range(result64):
+            add += data[i + read]
+            checksum += add
+        read += result64
+
+    for i in range(sz):
+        add += data[i + read]
+        checksum += add
+
+    result32 = 0x80078071
+    excess32 = ((result32 * add) >> 32) >> 15
+    add -= excess32 * 0xFFF1
+
+    result32 = 0x80078071
+    excess32 = ((result32 * checksum) >> 32) >> 15
+    checksum -= excess32 * 0xFFF1
+
+    checksum = (checksum << 16) | add
+    return checksum
+
+
 def crc32_checksum(data):
     return zlib.crc32(data) & 0xFFFFFFFF
 
@@ -101,6 +149,14 @@ def encrypt_data(game, data):
         # Update the checksum
         encoded_data[-8:-4] = checksum.to_bytes(4, byteorder="little")
         return encoded_data
+    elif game == "y6":
+        # Use standard XOR logic
+        encoded_data = xor_data(data, key)
+        # Use Y6 custom checksum
+        checksum = calculate_checksum_y6(data)
+        # Append 4-byte checksum
+        encoded_data += checksum.to_bytes(4, byteorder="little")
+        return encoded_data
     else:
         encoded_data = xor_data(data, key)
         encoded_data += crc32_checksum(data).to_bytes(4, byteorder="little")
@@ -112,9 +168,8 @@ def decrypt_data(game, data):
     if not key:
         print(f"Unsupported game: {game}")
         exit(1)
-
     # Special handling for Ishin
-    if game == "ik":
+    elif game == "ik":
         # Remove checksum and unknown data before decoding
         decoded_data = xor_data(data[:-16], key)
         # Append checksum and unknown data
