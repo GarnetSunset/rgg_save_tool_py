@@ -6,6 +6,37 @@ A tool for encrypting and decrypting RGG studios game saves.
 
 To download an executable, that is to say a program you can run and use right now: [Download here!](https://github.com/GarnetSunset/rgg_save_tool_py/releases)
 
+## Usage
+
+``
+python rgg_save_tool.py <input_file> [output_file] [-g <game_abbr>] [--ishin-to-steam | --ishin-to-gamepass]
+``
+
+### Arguments:
+
+``input_file``: The path to the save file you want to process.
+
+``output_file`` (optional): The path to save the processed file.
+
+``-g <game_abbr>``: Specify the game abbreviation manually. Supported options:
+
+```
+ik: Like a Dragon: Ishin
+je: Judgment
+lj: Lost Judgment
+gd: Like a Dragon: Gaiden
+y6: Yakuza 6
+y7: Yakuza 7
+y7_gog: Yakuza 7 GoG
+yk2: Yakuza Kiwami 2
+y8: Like a Dragon: Infinite Wealth
+v5b: Virtua Fighter 5 Open Beta
+```
+
+``--ishin-to-steam``: Converts an Ishin save from Game Pass to Steam.
+
+``--ishin-to-gamepass``: Converts an Ishin save from Steam to Game Pass.
+
 ## Credits
 
 Original Tool by [@SutandoTsukai181](https://github.com/SutandoTsukai181/yk2_save)

@@ -189,7 +189,9 @@ def decrypt_data(game, data):
         return xor_data(data[:-4], key)
 
 
-def process_file(input_file, game, output_file=None, to_steam=None, to_gamepass=None):
+def process_file(
+    input_file, game, output_file=None, ishin_to_steam=None, ishin_to_gamepass=None
+):
     """
     Processes the input file: encrypt, decrypt, or convert Ishin saves.
     - Encrypts/decrypts based on file extension (.json -> .sav/sys and vice versa).
@@ -218,19 +220,21 @@ def process_file(input_file, game, output_file=None, to_steam=None, to_gamepass=
             data = bytearray(f.read())
 
         # Ishin-specific platform conversion
-        if game == "ik" and (to_steam or to_gamepass):
-            if to_steam == to_gamepass:  # Ensure exactly one conversion option
+        if game == "ik" and (ishin_to_steam or ishin_to_gamepass):
+            if (
+                ishin_to_steam == ishin_to_gamepass
+            ):  # Ensure exactly one conversion option
                 print(
                     "Error: Only one of --to-steam or --to-gamepass may be specified."
                 )
                 exit(1)
 
-            save_from = "Steam" if to_gamepass else "Game Pass"
-            save_to = "Game Pass" if to_gamepass else "Steam"
+            save_from = "Steam" if ishin_to_gamepass else "Game Pass"
+            save_to = "Game Pass" if ishin_to_gamepass else "Steam"
             print(f"Converting Ishin save from {save_from} to {save_to}.")
 
             # Modify the 12th byte from the end for platform conversion
-            data[-12] = 0x21 if to_steam else 0x8F
+            data[-12] = 0x21 if ishin_to_steam else 0x8F
 
         # Encrypt or decrypt data if no conversion occurred
         elif encrypt:
@@ -300,10 +304,12 @@ def main():
     )
 
     parser.add_argument(
-        "--to-steam", help="Convert Ishin saves to Steam", action="store_true"
+        "--ishin-to-steam", help="Convert Ishin saves to Steam", action="store_true"
     )
     parser.add_argument(
-        "--to-gamepass", help="Convert Ishin saves to Game Pass", action="store_true"
+        "--ishin-to-gamepass",
+        help="Convert Ishin saves to Game Pass",
+        action="store_true",
     )
 
     # Game abbreviation argument
@@ -322,7 +328,11 @@ def main():
 
     # Process the file (encrypt, decrypt, or convert)
     process_file(
-        args.input_file, game, args.output_file, args.to_steam, args.to_gamepass
+        args.input_file,
+        game,
+        args.output_file,
+        args.ishin_to_steam,
+        args.ishin_to_gamepass,
     )
 
 
