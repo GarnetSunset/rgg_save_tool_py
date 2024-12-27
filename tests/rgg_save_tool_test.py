@@ -43,7 +43,7 @@ class RGGSaveToolTests(unittest.TestCase):
             "test_converted.sav",
             "-g",
             "ik",
-            "--to-gamepass",
+            "--ishin-to-gamepass",
         ],
     )
     def test_ik_to_gamepass_end_to_end(self):
@@ -172,7 +172,7 @@ class TestConvertIshinSave(unittest.TestCase):
     def test_convert_to_steam(self, mock_file):
         output_bytes = bytes.fromhex("00000000210000000000000000000000")
 
-        process_file("input.sys", "ik", to_steam=True)
+        process_file("input.sys", "ik", ishin_to_steam=True)
 
         mock_file.assert_called_with("input_ik.json", "wb")
         mock_file().write.assert_called_once_with(output_bytes)
@@ -181,7 +181,7 @@ class TestConvertIshinSave(unittest.TestCase):
     def test_convert_to_gamepass(self, mock_file):
         output_bytes = bytes.fromhex("000000008F0000000000000000000000")
 
-        process_file("input.sys", "ik", to_gamepass=True)
+        process_file("input.sys", "ik", ishin_to_gamepass=True)
 
         mock_file.assert_called_with("input_ik.json", "wb")
         mock_file().write.assert_called_once_with(output_bytes)
@@ -190,7 +190,9 @@ class TestConvertIshinSave(unittest.TestCase):
     def test_default_output_file(self, mock_file):
         output_filename = "output.ext"
         output_bytes = bytes.fromhex("00000000210000000000000000000000")
-        process_file("input.sys", "ik", to_steam=True, output_file=output_filename)
+        process_file(
+            "input.sys", "ik", ishin_to_steam=True, output_file=output_filename
+        )
 
         mock_file.assert_called_with(output_filename, "wb")
         mock_file().write.assert_called_once_with(output_bytes)
