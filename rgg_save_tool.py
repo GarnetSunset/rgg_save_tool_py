@@ -15,6 +15,7 @@ game_keys = {
     "yk2": "STarYZgr3DL11",
     "y8": "STarYZgr3DL11",
     "v5b": "STarYZgr3DL11",
+    "yp": "STarYZgr3DL11",
 }
 
 # Mapping of human-readable game names to their key abbreviations
@@ -29,6 +30,7 @@ game_names = {
     "yk2": "Yakuza Kiwami 2 (yk2)",
     "y8": "Like a Dragon: Infinite Wealth (y8)",
     "v5b": "Virtua Fighter 5 Open Beta (v5b)",
+    "yp": "Like a Dragon: Pirate Yakuza In Hawaii (yp)",
 }
 
 # Headers for automatic detection
