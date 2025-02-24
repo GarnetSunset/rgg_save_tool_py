@@ -1,7 +1,10 @@
 import argparse
+import json
 import os
 import sys
 import zlib
+
+import msgpack
 
 # Dictionary of keys for different games
 game_keys = {
@@ -20,7 +23,7 @@ game_keys = {
 
 # Mapping of human-readable game names to their key abbreviations
 game_names = {
-    "ik": "Like a Dragon: Ishin (ik)",  # Ret-HZ asked for this
+    "ik": "Like a Dragon: Ishin (ik)",
     "je": "Judgment (je)",
     "lj": "Lost Judgment (lj)",
     "gd": "Like a Dragon: Gaiden (gd)",
@@ -32,6 +35,9 @@ game_names = {
     "v5b": "Virtua Fighter 5 Open Beta (v5b)",
     "yp": "Like a Dragon: Pirate Yakuza In Hawaii (yp)",
 }
+
+# List of games that natively use msgpack encryption format
+msgpack_games = ["yp"]
 
 # Headers for automatic detection
 game_headers = {
@@ -49,8 +55,6 @@ game_headers = {
     ],
     "lj": [
         b"\x11\x69\x63\x27\x20\x04\x15\x69\x00\x54",
-        # conflicts with second gd header
-        # b"\x11\x69\x63\x27\x20\x04\x15\x69\x02\x40",
     ],
     "y6": [
         b"\x2d\x6b\x1d\x04\x07\x22\x41\x51\x7f\x43",
@@ -75,6 +79,10 @@ game_headers = {
     "v5b": [
         b"\x28\x76\x4f\x04\x3c\x28\x45\x48\x02\x68",
     ],
+    "yp": [
+        b"\x8D\x54\x46\xD6\x77\x2C\x02\x00\x70\xE1",
+        b"\xDB\xF0\x4F\x04\x3C\x28\x6F\xD7\x5A\x2A",
+    ],
 }
 
 
@@ -84,7 +92,6 @@ def xor_data(data, key):
 
 
 def calculate_checksum_y6(data):
-    # Seed value for the checksum calculation
     seed = 0x79BAA6BB6398B6F7
     checksum = 0
     add = 0
@@ -92,10 +99,8 @@ def calculate_checksum_y6(data):
 
     sz = len(data)
     if sz < 0x15B0:
-        # If data size is less than the chunk size, do nothing
         pass
     else:
-        # Calculate the number of full chunks in the data
         sz_result = sz
         result64 = seed
         excess64 = (result64 * sz) >> 64
@@ -104,16 +109,13 @@ def calculate_checksum_y6(data):
         sz -= sz_result * 0x15B0
 
         for s in range(sz_result):
-            # Process each full chunk of data
             read = s * 0x15B0
             for i in range(0x15B0):
                 add += data[i + read]
                 checksum += add
 
-    # Process remaining data after full chunks
     read = sz_result * 0x15B0
     if sz >= 0x10:
-        # Process any remaining data that fits in 16-byte blocks
         result64 = sz >> 4
         result64 *= 0x10
         sz -= result64
@@ -122,12 +124,10 @@ def calculate_checksum_y6(data):
             checksum += add
         read += result64
 
-    # Process any remaining bytes that do not fit in 16-byte blocks
     for i in range(sz):
         add += data[i + read]
         checksum += add
 
-    # Finalize the checksum with modulo operations
     result32 = 0x80078071
     excess32 = ((result32 * add) >> 32) >> 15
     add -= excess32 * 0xFFF1
@@ -136,7 +136,6 @@ def calculate_checksum_y6(data):
     excess32 = ((result32 * checksum) >> 32) >> 15
     checksum -= excess32 * 0xFFF1
 
-    # Combine checksum and add values
     checksum = (checksum << 16) | add
     return checksum
 
@@ -151,22 +150,15 @@ def encrypt_data(game, data):
         print(f"Unsupported game: {game}")
         sys.exit(1)
 
-    # Special handling for Ishin
     if game == "ik":
-        # Exclude checksum and unknown data
         encoded_data = xor_data(data[:-16], key)
-        # Append checksum and unknown data
         encoded_data += data[-16:]
         checksum = crc32_checksum(data[:-16])
-        # Update the checksum
         encoded_data[-8:-4] = checksum.to_bytes(4, byteorder="little")
         return encoded_data
     elif game == "y6":
-        # Use standard XOR logic
         encoded_data = xor_data(data, key)
-        # Use Y6 custom checksum
         checksum = calculate_checksum_y6(data)
-        # Append 4-byte checksum
         encoded_data += checksum.to_bytes(4, byteorder="little")
         return encoded_data
     else:
@@ -179,116 +171,135 @@ def decrypt_data(game, data):
     key = game_keys.get(game)
     if not key:
         print(f"Unsupported game: {game}")
-        exit(1)
-    # Special handling for Ishin
-    elif game == "ik":
-        # Remove checksum and unknown data before decoding
+        sys.exit(1)
+    if game == "ik":
         decoded_data = xor_data(data[:-16], key)
-        # Append checksum and unknown data
         return decoded_data + data[-16:]
     else:
-        # Remove checksum assumed to be last 4 bytes
         return xor_data(data[:-4], key)
 
 
+def convert_bytes(obj):
+    if isinstance(obj, bytes):
+        return obj.hex()
+    elif isinstance(obj, dict):
+        return {k: convert_bytes(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [convert_bytes(v) for v in obj]
+    return obj
+
+
+def encrypt_msgpack(game, json_obj):
+    key = game_keys.get(game)
+    if not key:
+        print(f"Unsupported game: {game}")
+        sys.exit(1)
+    packed = msgpack.packb(json_obj, use_bin_type=True)
+    encrypted = bytes(packed[i] ^ ord(key[i % len(key)]) for i in range(len(packed)))
+    checksum = crc32_checksum(packed)
+    return encrypted + checksum.to_bytes(4, byteorder="little")
+
+
+def decrypt_msgpack(game, data):
+    key = game_keys.get(game)
+    if not key:
+        print(f"Unsupported game: {game}")
+        sys.exit(1)
+    decrypted = bytes(data[i] ^ ord(key[i % len(key)]) for i in range(len(data) - 4))
+    try:
+        unpacked = msgpack.unpackb(decrypted, raw=False)
+        unpacked = convert_bytes(unpacked)
+        return json.dumps(unpacked, indent=4, ensure_ascii=False).encode("utf-8")
+    except Exception as e:
+        print("Error unpacking msgpack data:", e)
+        return decrypted
+
+
 def process_file(
-    input_file, game, output_file=None, ishin_to_steam=None, ishin_to_gamepass=None
+    input_file,
+    game,
+    output_file=None,
+    ishin_to_steam=None,
+    ishin_to_gamepass=None,
+    force_msgpack=False,
 ):
-    """
-    Processes the input file: encrypt, decrypt, or convert Ishin saves.
-    - Encrypts/decrypts based on file extension (.json -> .sav/sys and vice versa).
-    - Converts Ishin saves if `to_steam` or `to_gamepass` is specified.
-    """
     base, ext = os.path.splitext(input_file)
+    encrypt_flag = ext == ".json"
+    decrypt_flag = ext in (".sav", ".sys")
 
-    # Determine operation (encrypt/decrypt) based on file extension
-    encrypt = ext == ".json"
-    decrypt = ext in (".sav", ".sys")
-
-    if not encrypt and not decrypt:
+    if not encrypt_flag and not decrypt_flag:
         print(f"Unsupported file type for {input_file}.")
-        exit(1)
+        sys.exit(1)
 
-    # Set default output file name
     if output_file is None:
-        if encrypt:
+        if encrypt_flag:
             output_file = f"{base.split('_')[0]}.sav"
         else:
             output_file = f"{base}_{game}.json"
 
     try:
-        # Read input file
         with open(input_file, "rb") as f:
             data = bytearray(f.read())
 
+        # If force_msgpack is enabled or the game is natively msgpack-based, use msgpack functions.
+        if force_msgpack or (game in msgpack_games):
+            if encrypt_flag:
+                text = data.decode("utf-8")
+                json_obj = json.loads(text)
+                data = encrypt_msgpack(game, json_obj)
+            elif decrypt_flag:
+                data = decrypt_msgpack(game, data)
         # Ishin-specific platform conversion
-        if game == "ik" and (ishin_to_steam or ishin_to_gamepass):
-            if (
-                ishin_to_steam == ishin_to_gamepass
-            ):  # Ensure exactly one conversion option
+        elif game == "ik" and (ishin_to_steam or ishin_to_gamepass):
+            if ishin_to_steam == ishin_to_gamepass:
                 print(
-                    "Error: Only one of --to-steam or --to-gamepass may be specified."
+                    "Error: Only one of --ishin-to-steam or --ishin-to-gamepass may be specified."
                 )
-                exit(1)
-
+                sys.exit(1)
             save_from = "Steam" if ishin_to_gamepass else "Game Pass"
             save_to = "Game Pass" if ishin_to_gamepass else "Steam"
             print(f"Converting Ishin save from {save_from} to {save_to}.")
-
-            # Modify the 12th byte from the end for platform conversion
             data[-12] = 0x21 if ishin_to_steam else 0x8F
-
-        # Encrypt or decrypt data if no conversion occurred
-        elif encrypt:
+        elif encrypt_flag:
             data = encrypt_data(game, data)
-        elif decrypt:
+        elif decrypt_flag:
             data = decrypt_data(game, data)
 
-        # Write output file
         with open(output_file, "wb") as f:
             f.write(data)
 
         print(f"Processed '{input_file}' to '{output_file}'")
-
     except IOError as e:
         print(f"Error processing '{input_file}': {e.strerror}")
-        exit(1)
+        sys.exit(1)
 
 
 def identify_game_from_save(filename):
     try:
         with open(filename, "rb") as file:
-            file_header = file.read(10)  # Read first 10 bytes
+            file_header = file.read(10)
         for game, headers in game_headers.items():
             if any(file_header.startswith(header) for header in headers):
-                game_name = game_names[game]
-                print(f"Detected game based on file header: {game_name}")
+                print(f"Detected game based on file header: {game_names[game]}")
                 return game
-        # If no match found, return None
         return None
     except IOError as e:
         print(f"Error processing '{filename}': {e.strerror}")
-        exit(1)
+        sys.exit(1)
 
 
 def find_game_abbreviation(filename, abbr_arg=None):
-    # Attempt to get game from command line argument
     game_abbr = None if abbr_arg not in game_names else abbr_arg
-
-    # Attempt to detect game from filename
     if not game_abbr:
         for abbr in game_names:
             if f"_{abbr}." in filename:
                 game_abbr = abbr
                 break
-
-    # If not found in filename, try detecting from file header
     if not game_abbr:
         game_abbr = identify_game_from_save(filename)
-
     if not game_abbr:
         print("Failed to detect game. Please specify a game abbreviation.")
-        exit(1)
+        sys.exit(1)
     return game_abbr
 
 
@@ -296,7 +307,9 @@ def main():
     parser = argparse.ArgumentParser(
         description="""Process RGG game save files.
         Encrypts .json to .sav or .sys and decrypts .sav or .sys to .json.
-        Converts Ishin (ik) saves between Steam and Game Pass if specified.""",
+        Converts Ishin (ik) saves between Steam and Game Pass if specified.
+        For msgpack-based games (e.g. Pirate Yakuza), decrypting outputs human-readable JSON.
+        Use --msgpack to force msgpack mode.""",
         formatter_class=argparse.RawTextHelpFormatter,
     )
     print(f"Current working directory: {os.getcwd()}")
@@ -313,8 +326,12 @@ def main():
         help="Convert Ishin saves to Game Pass",
         action="store_true",
     )
+    parser.add_argument(
+        "--msgpack",
+        help="Force msgpack mode for encryption/decryption",
+        action="store_true",
+    )
 
-    # Game abbreviation argument
     game_list = "\n".join([f"{k}: {v}" for k, v in game_names.items()])
     parser.add_argument(
         "-g",
@@ -324,17 +341,14 @@ def main():
     )
 
     args = parser.parse_args()
-
-    # Determine game abbreviation
     game = find_game_abbreviation(args.input_file, args.game)
-
-    # Process the file (encrypt, decrypt, or convert)
     process_file(
         args.input_file,
         game,
         args.output_file,
         args.ishin_to_steam,
         args.ishin_to_gamepass,
+        args.msgpack,
     )
 
 
