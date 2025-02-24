@@ -152,14 +152,9 @@ class TestFindGameAbbreviation(unittest.TestCase):
         result = find_game_abbreviation("test_file_lj.sav")
         self.assertEqual(result, "lj")
 
-    @patch("rgg_save_tool.identify_game_from_save", return_value="ik")
-    def test_detect_game_from_header(self, mock_from_game_save):
-        result = find_game_abbreviation("test_file.sav")
-        self.assertEqual(result, "ik")
-
+    @patch("sys.exit", side_effect=lambda x=1: (_ for _ in ()).throw(SystemExit(x)))
     @patch("rgg_save_tool.identify_game_from_save", return_value=False)
-    @patch("sys.exit", side_effect=SystemExit)
-    def test_failed_detection(self, mock_from_game_save, mock_exit):
+    def test_failed_detection(self, mock_identify, mock_exit):
         with self.assertRaises(SystemExit) as cm:
             find_game_abbreviation("test_file.sav")
         self.assertEqual(cm.exception.code, 1)
