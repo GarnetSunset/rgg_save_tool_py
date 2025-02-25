@@ -3,7 +3,7 @@ name: Build and Release
 on:
   push:
     paths:
-      - 'rgg_save_tool.py'
+      - 'rgg_save_tool/rgg_save_tool.py'
   workflow_dispatch:
 
 jobs:
