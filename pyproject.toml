@@ -6,22 +6,22 @@ authors = ["GarnetSunset <github@amusement.vision>"]
 license = "MIT"
 readme = "README.md"
 packages = [
-    { include = "rgg_save_tool_py" }
+    { include = "rgg_save_tool" }
 ]
 
-[tool.poetry.group.dev.dependencies]
+[tool.poetry.dependencies]
+python = "^3.8"
+msgpack = "^1.1.0"
+
+[tool.poetry.dev-dependencies]
 poetry-dynamic-versioning = "^1.7.1"
 
 [tool.poetry-dynamic-versioning]
 enable = true
 
-[tool.poetry.dependencies]
-python = "^3.8"
-msgpack = "^1.0"
-
-[tool.poetry.scripts]
-rgg-save-tool = "rgg_save_tool_py.core:main"
-
 [build-system]
 requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.scripts]
+rgg-save-tool = "rgg_save_tool.rgg_save_tool:main"

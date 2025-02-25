@@ -2,9 +2,9 @@ import os
 import unittest
 from unittest.mock import mock_open, patch
 
-from rgg_save_tool import crc32_checksum  # Added to test the Y6 checksum logic
-from rgg_save_tool import (
+from rgg_save_tool.rgg_save_tool import (  # Added to test the Y6 checksum logic
     calculate_checksum_y6,
+    crc32_checksum,
     decrypt_data,
     encrypt_data,
     find_game_abbreviation,
@@ -153,7 +153,7 @@ class TestFindGameAbbreviation(unittest.TestCase):
         self.assertEqual(result, "lj")
 
     @patch("sys.exit", side_effect=lambda x=1: (_ for _ in ()).throw(SystemExit(x)))
-    @patch("rgg_save_tool.identify_game_from_save", return_value=False)
+    @patch("rgg_save_tool.rgg_save_tool.identify_game_from_save", return_value=False)
     def test_failed_detection(self, mock_identify, mock_exit):
         with self.assertRaises(SystemExit) as cm:
             find_game_abbreviation("test_file.sav")

@@ -164,3 +164,4 @@ cython_debug/
 # Exclude files generated during tests
 saves/test_ik_ik.json
 saves/test.sav
+/bin/
