@@ -24,4 +24,5 @@ repos:
         name: Run Pytest
         entry: pytest
         language: system
+        args: [ "tests" ]
         types: [ python ]
