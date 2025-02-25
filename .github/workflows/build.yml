@@ -27,7 +27,7 @@ jobs:
       - name: Build Executable (Linux/MacOS)
         if: runner.os != 'Windows'
         run: |
-          pyinstaller --onefile rgg_save_tool.py
+          pyinstaller --onefile rgg_save_tool/rgg_save_tool.py
           if [[ "$RUNNER_OS" == "Linux" ]]; then
             mv dist/rgg_save_tool dist/rgg_save_tool-linux
           elif [[ "$RUNNER_OS" == "macOS" ]]; then
@@ -37,7 +37,7 @@ jobs:
       - name: Build Executable (Windows)
         if: runner.os == 'Windows'
         run: |
-          pyinstaller --onefile rgg_save_tool.py
+          pyinstaller --onefile rgg_save_tool/rgg_save_tool.py
           Move-Item -Path dist\rgg_save_tool.exe -Destination dist\rgg_save_tool-windows.exe
         shell: pwsh
 
