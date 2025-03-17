@@ -1,6 +1,6 @@
 # rgg_save_tool_py
 
-A tool for encrypting and decrypting RGG studios game saves.
+A tool for encrypting and decrypting RGG studios game saves on PC.
 
 ## Download (For non-technical people)
 
